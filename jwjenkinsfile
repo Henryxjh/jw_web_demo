@@ -1,0 +1,42 @@
+pipeline {
+agent any
+stages {
+stage('拉取代码') {
+steps {
+echo '拉取代码'
+checkout([$class: 'GitSCM', branches: [[name: '*/${jwbranch}']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '4689001b-91ae-4c18-9b02-0bc095534bc1', url: 'git@192.168.58.151:jw_group/jw_demo_web.git']]])
+}
+}
+
+stage('jw-SonarQube代码审查')
+ {
+steps{
+ script {
+   scannerHome = tool 'jw-sonarqube-scanner'
+ }
+ withSonarQubeEnv('jwsonarqube6.7') {
+     sh "${scannerHome}/bin/sonar-scanner"
+} } }
+
+
+stage('编译构建') {
+steps {
+echo '编译构建'
+sh label: '', script: 'mvn clean package'
+}
+}
+stage('项目部署') {
+steps {
+deploy adapters: [tomcat8(credentialsId: '46d6f1f3-2e44-4422-827c-b679d430c9ad', path: '', url: 'http://192.168.58.151:8111')], contextPath: null, war: 'target/*.war'}
+}
+}
+
+post {
+always { emailext( subject: '构建通知：${PROJECT_NAME} - Build # ${BUILD_NUMBER} - ${BUILD_STATUS}!'
+, body: '${FILE,path="email.html"}', to: 'jiangwei@51testing.com,691203450@qq.com' )
+} }
+
+
+
+
+}
